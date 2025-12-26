@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleBotResponse = (userMsg) => {
         // Show typing indicator or just wait (optional)
 
-        // Use absolute URL to allow file:// access if server is running
-        fetch('http://127.0.0.1:5000/chat', {
+        // Use relative URL for deployment compatibility
+        fetch('/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

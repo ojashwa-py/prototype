@@ -384,32 +384,30 @@ def monitor_notifications(bot):
         
         time.sleep(3) # Check every 3 seconds
 
-def run_web_server():
-    app = Flask(__name__, static_folder='.', static_url_path='')
-    CORS(app)
+app = Flask(__name__, static_folder='.', static_url_path='')
+CORS(app)
+
+bot = IDecorBot()
+
+# Start background thread for notifications (logs to server console)
+# We check if it is the main thread/reloader to avoid duplicate threads in some envs, 
+# but for simple deployment this is okay.
+t = threading.Thread(target=monitor_notifications, args=(bot,), daemon=True)
+t.start()
+
+@app.route('/')
+def home():
+    return app.send_static_file('index.html')
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.json
+    message = data.get('message', '')
+    user_id = data.get('user_id', 'web_guest') # Use provided user_id or default
     
-    bot = IDecorBot()
-    
-    # Start background thread for notifications (logs to server console)
-    t = threading.Thread(target=monitor_notifications, args=(bot,), daemon=True)
-    t.start()
-
-    @app.route('/')
-    def home():
-        return app.send_static_file('index.html')
-
-    @app.route('/chat', methods=['POST'])
-    def chat():
-        data = request.json
-        message = data.get('message', '')
-        user_id = data.get('user_id', 'web_guest') # Use provided user_id or default
-        
-        response = bot.handle_message(user_id, message)
-        return jsonify({"response": response})
-
-    print("Starting Flask connection for iDecor Chat...")
-    app.run(port=5000, debug=True)
+    response = bot.handle_message(user_id, message)
+    return jsonify({"response": response})
 
 if __name__ == "__main__":
-    # Switching to web server mode as requested
-    run_web_server()
+    print("Starting Flask connection for iDecor Chat...")
+    app.run(port=5000, debug=True)
