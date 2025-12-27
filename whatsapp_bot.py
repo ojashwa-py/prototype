@@ -70,26 +70,49 @@ class IDecorBot:
             creds = None
             
             # 1. Try Environment Variable (Best for Render/Heroku)
+            
+            # Helper to clean private key
+            def clean_key(key):
+                # Remove extra quotes if user pasted them
+                key = key.strip().strip('"').strip("'")
+                # Fix escaped newlines - mostly it's \\n from JSON string or copy-paste
+                key = key.replace('\\n', '\n')
+                # Sometimes triple escapes happen
+                key = key.replace('\\\\n', '\n')
+                return key
+
             json_creds = os.environ.get("GOOGLE_CREDENTIALS")
-            if json_creds:
+            if json_creds and json_creds.strip():
                 try:
                     creds_dict = json.loads(json_creds)
                     
-                    # Fix potential newline escaping issues in private_key (common in Render/Heroku)
                     if 'private_key' in creds_dict:
-                        creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
+                        raw_key = creds_dict['private_key']
+                        creds_dict['private_key'] = clean_key(raw_key) 
                     
-                    # Use from_json_keyfile_dict
                     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
                 except Exception as e:
-                    print(f"[ERROR] Failed to load credentials from Env: {e}")
+                    print(f"[ERROR] Failed to load credentials from Env. Error: {e}")
+                    # Print snippet to help debug (masked)
+                    print(f"[DEBUG] Env Content Snippet: {json_creds[:20]}...")
             
             # 2. Try Local File (Fallback)
             if not creds:
+                print("[SYSTEM] Attempting fallback to local 'credentials.json'...")
                 if os.path.exists(self.creds_file):
-                    creds = ServiceAccountCredentials.from_json_keyfile_name(self.creds_file, scope)
+                    # Manual load to apply the \n fix even for files, just in case
+                    try:
+                        with open(self.creds_file, 'r') as f:
+                            file_creds = json.load(f)
+                        
+                        if 'private_key' in file_creds:
+                             file_creds['private_key'] = clean_key(file_creds['private_key'])
+                        
+                        creds = ServiceAccountCredentials.from_json_keyfile_dict(file_creds, scope)
+                    except Exception as e:
+                         print(f"[ERROR] Fallback file loading failed: {e}")
                 else:
-                    print(f"[ERROR]: '{self.creds_file}' not found and 'GOOGLE_CREDENTIALS' env var is empty.")
+                    print(f"[ERROR]: '{self.creds_file}' not found and 'GOOGLE_CREDENTIALS' env var is empty/invalid.")
                     return
 
             client = gspread.authorize(creds)
