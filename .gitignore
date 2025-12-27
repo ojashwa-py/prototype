@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 orders.xlsx
 credentials.json
+credential.json
+credentials..json
 .env
