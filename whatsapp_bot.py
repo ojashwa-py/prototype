@@ -64,15 +64,29 @@ class IDecorBot:
         )
 
     def connect_gsheet(self):
-        """Connects to Google Sheets using the service account."""
+        """Connects to Google Sheets using the service account (File or Env Var)."""
         try:
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            creds = None
             
-            if not os.path.exists(self.creds_file):
-                print(f"[ERROR]: '{self.creds_file}' not found. Please add it to the project folder.")
-                return
+            # 1. Try Environment Variable (Best for Render/Heroku)
+            json_creds = os.environ.get("GOOGLE_CREDENTIALS")
+            if json_creds:
+                try:
+                    creds_dict = json.loads(json_creds)
+                    # Use from_json_keyfile_dict
+                    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+                except Exception as e:
+                    print(f"[ERROR] Failed to load credentials from Env: {e}")
+            
+            # 2. Try Local File (Fallback)
+            if not creds:
+                if os.path.exists(self.creds_file):
+                    creds = ServiceAccountCredentials.from_json_keyfile_name(self.creds_file, scope)
+                else:
+                    print(f"[ERROR]: '{self.creds_file}' not found and 'GOOGLE_CREDENTIALS' env var is empty.")
+                    return
 
-            creds = ServiceAccountCredentials.from_json_keyfile_name(self.creds_file, scope)
             client = gspread.authorize(creds)
             
             # Open the sheet
