@@ -3,3 +3,5 @@ openpyxl
 flask
 flask-cors
 gunicorn
+gspread
+oauth2client
