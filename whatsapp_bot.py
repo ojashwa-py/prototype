@@ -74,6 +74,11 @@ class IDecorBot:
             if json_creds:
                 try:
                     creds_dict = json.loads(json_creds)
+                    
+                    # Fix potential newline escaping issues in private_key (common in Render/Heroku)
+                    if 'private_key' in creds_dict:
+                        creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
+                    
                     # Use from_json_keyfile_dict
                     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
                 except Exception as e:
