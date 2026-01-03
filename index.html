@@ -4,32 +4,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iDecor Chat Support</title>
+    <title>Posterman Chat Support</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="chat_style.css">
 </head>
 
 <body>
-    <div class="chat-wrapper">
+    <!-- Chat Widget (Fixed View) -->
+    <div class="chat-wrapper" id="chat-widget">
         <div class="chat-container">
             <!-- Header -->
             <header class="chat-header">
                 <div class="bot-info">
                     <div class="avatar-container">
-                        <img src="https://ui-avatars.com/api/?name=iDecor&background=7c4dff&color=fff" alt="iDecor Bot">
+                        <img src="posterman_bot_avatar_1767455871921.png" alt="PosterMan Bot">
                         <span class="status-dot"></span>
                     </div>
                     <div class="header-text">
-                        <h3>iDecor Assistant</h3>
-                        <p>Online • Replies instantly</p>
+                        <h3>PosterMan Support</h3>
+                        <p>Online</p>
                     </div>
                 </div>
                 <div class="header-actions">
-                    <button class="icon-btn"><i class="fa-solid fa-phone"></i></button>
-                    <button class="icon-btn"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                    <button class="icon-btn" id="close-chat-btn"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </header>
 
@@ -41,28 +41,25 @@
 
                 <div class="message bot">
                     <div class="bubble">
-                        Welcome to iDecor 🖼️<br>
-                        Custom posters, polaroids & stickers.<br>
-                        How can I help you today?
+                        Hello! Welcome to PosterMan. 🎨<br>
+                        Looking for custom prints or need help with an order?
                     </div>
-                    <span class="timestamp">10:00 AM</span>
+                    <span class="timestamp">Just now</span>
                 </div>
 
                 <div class="options-container">
-                    <button class="option-btn" onclick="sendQuickReply('Place an order')">🛒 Place an order</button>
-                    <button class="option-btn" onclick="sendQuickReply('Check order status')">📦 Check order
-                        status</button>
-                    <button class="option-btn" onclick="sendQuickReply('FAQ')">ℹ️ FAQ</button>
-                    <button class="option-btn" onclick="sendQuickReply('Policies')">📜 Policies</button>
+                    <button class="option-btn" onclick="sendQuickReply('Track Order')">� Track Order</button>
+                    <button class="option-btn" onclick="sendQuickReply('Custom Print')">✨ Custom Print</button>
+                    <button class="option-btn" onclick="sendQuickReply('Shipping Info')">� Shipping Info</button>
                 </div>
             </div>
 
             <!-- Input Area -->
             <footer class="chat-input-area">
-                <button class="attach-btn"><i class="fa-solid fa-plus"></i></button>
+                <input type="file" id="image-upload" accept="image/*" hidden>
+                <button class="attach-btn" id="attach-btn"><i class="fa-solid fa-paperclip"></i></button>
                 <div class="input-wrapper">
                     <input type="text" id="user-input" placeholder="Type a message..." autocomplete="off">
-                    <button class="emoji-btn"><i class="fa-regular fa-face-smile"></i></button>
                 </div>
                 <button class="send-btn" id="send-btn">
                     <i class="fa-solid fa-paper-plane"></i>

@@ -14,7 +14,7 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class IDecorBot:
-    def __init__(self, sheet_name="iDecor Orders", creds_file="credentials.json"):
+    def __init__(self, sheet_name="PosterMan Orders", creds_file="credentials.json"):
         self.sheet_name = sheet_name
         self.creds_file = os.path.join(BASE_DIR, creds_file)
         self.user_sessions = {}
@@ -23,28 +23,32 @@ class IDecorBot:
         self.load_products()
         self.connect_gsheet()
         
-        # Policy and text constants
+        # Identity & Tone
+        self.BOT_NAME = "PosterBot"
+        self.WHATSAPP_LINK = "https://wa.me/919876543210" # Placeholder number
+        
         self.WELCOME_MESSAGE = {
             "text": (
-                "Welcome to iDecor 🖼️\n"
-                "Custom posters, polaroids & stickers.\n"
-                "How can I help you today?"
+                "Welcome to PosterMan! 🎨\n"
+                "I'm PosterBot, your personal art curator.\n"
+                "Looking for some museum-grade art for your walls today?"
             ),
-            "options": ["🛒 Place an order", "📦 Check order status", "ℹ️ FAQ", "📜 Policies"]
+            "options": ["🛒 Place an order", "📦 Track Order", "✨ Custom Print", "🦸 Anime Collection"]
         }
         
+        # Responses
         self.FAQ_MESSAGE = {
-            "text": "Please note: iDecor does not offer replacement. Courier damage is not refundable.",
+            "text": "Please note: PosterMan does not offer replacement. Courier damage is not refundable.",
             "options": ["🔙 Main Menu"]
         }
 
         self.POLICIES_MESSAGE = {
             "text": (
-                "📜 iDecor Store Policies\n\n"
-                "• All products are customized. Once an order is confirmed, it cannot be modified or cancelled.\n"
-                "• Refunds are not guaranteed and are issued only after verification.\n"
-                "• Courier damage after dispatch is not refundable.\n"
-                "• iDecor does not offer replacement under any circumstances."
+                "📜 **PosterMan Policies**\n\n"
+                "• **Shipping**: Free Shipping over ₹999. Dispatched within 24-48 hours.\n"
+                "• **Returns**: We offer Free Replacements for damage during transit (video proof required).\n"
+                "• **Refunds**: Issued only after verification.\n"
+                "• **Note**: Custom orders cannot be cancelled once confirmed."
             ),
             "options": ["🔙 Main Menu"]
         }
@@ -230,158 +234,159 @@ class IDecorBot:
             self.user_sessions[user_phone] = {
                 "state": "IDLE", 
                 "cart": [],
-                "user_info": {"phone": user_phone}
+                "user_info": {"phone": user_phone},
+                "fallback_count": 0
             }
         
         session = self.user_sessions[user_phone]
         state = session["state"]
 
-        # 1. Global Commands
+        # --- 1. Global Resets ---
         if msg_lower in ["hi", "hello", "hey", "menu", "start", "restart", "main menu", "🔙 main menu"]:
             session["state"] = "IDLE"
-            session["cart"] = []
+            session["fallback_count"] = 0
             return self.WELCOME_MESSAGE
 
-        # 2. State Machine
+        # --- 2. IDLE State & Keyword Rules ---
         if state == "IDLE":
+            # Rule #1: Order Tracking
+            if any(w in msg_lower for w in ["track", "order status", "where is my order", "status"]):
+                session["state"] = "CHECK_STATUS"
+                session["fallback_count"] = 0
+                return {"text": "Sure! Please enter your **Order ID** (e.g., #PM-1234) to check status.", "options": ["🔙 Main Menu"]}
+
+            # Rule #2: Product Recommendations
+            if any(w in msg_lower for w in ["anime", "marvel", "cars", "gift", "collection"]):
+                session["fallback_count"] = 0
+                category = "all"
+                if "anime" in msg_lower: category = "anime"
+                elif "marvel" in msg_lower: category = "marvel"
+                elif "cars" in msg_lower: category = "cars"
+                
+                offer_text = "🔥 **Admin Tip**: Buy 2 Get 10% Off!"
+                return {
+                    "text": f"Welcome to the Otaku Zone! Check out our {category.capitalize()} collection.\n{offer_text}\n\n[View Collection](/products.html?cat={category})",
+                    "options": ["🛒 Place an order", "✨ Custom Print"]
+                }
+
+            # Rule #3: Custom Orders
+            if any(w in msg_lower for w in ["custom", "personal", "my own photo", "print", "image uploaded"]):
+                session["fallback_count"] = 0
+                if "[image uploaded]" in msg_lower:
+                    # Direct upload from idle, save as detail
+                    url = message.split("] ")[1] if "] " in message else message
+                    session["current_item"] = {"type": "Custom", "product_name": "Custom Upload", "details": f"Image: {url}"}
+                    session["state"] = "CUSTOM_ASK_QTY"
+                    return {
+                        "text": "Wow, great shot! 📸 I've received your image. How many copies do you need?",
+                        "options": ["1", "2", "3", "5"]
+                    }
+
+                return {
+                    "text": "Finding your masterpiece? We use **240gsm premium paper** for custom prints! 🖼️\n\nUpload your art by clicking the 📎 icon below.",
+                    "options": ["🔙 Main Menu"]
+                }
+
+            # Rule #4: Policies
+            if any(w in msg_lower for w in ["return", "broken", "refund", "shipping", "shipping time", "policy"]):
+                session["fallback_count"] = 0
+                return self.POLICIES_MESSAGE
+
+            # Cart / Checkout
+            if any(w in msg_lower for w in ["checkout", "buy", "cart"]):
+                session["fallback_count"] = 0
+                return {
+                    "text": "Ready to own your art? 🛒\n\n[Proceed to Checkout](/checkout.html)", 
+                    "options": ["🔙 Main Menu"]
+                }
+
+            # Chat on WhatsApp Action
+            if "chat upon whatsapp" in msg_lower or "chat on whatsapp" in msg_lower:
+                 return {
+                     "text": f"Click here to chat with our expert: [Open WhatsApp]({self.WHATSAPP_LINK})",
+                     "options": ["🔙 Main Menu"]
+                 }
+                 
+            # Existing Flow: Place Order
             if "place an order" in msg_lower or "cart" in msg_lower:
                 session["state"] = "ASK_ORDER_CATEGORY"
+                session["fallback_count"] = 0
                 return {
                     "text": "What would you like to order?",
                     "options": ["Website Product", "Custom Product"]
                 }
-            
-            elif "check order status" in msg_lower:
-                session["state"] = "CHECK_STATUS"
-                return {"text": "Please enter your Order ID:", "options": ["🔙 Main Menu"]}
-            
-            elif "faq" in msg_lower:
-                return self.FAQ_MESSAGE
-            
-            elif "policies" in msg_lower:
-                return self.POLICIES_MESSAGE
-            
-            else:
-                return {
-                    "text": "I didn't understand that. Please select an option:",
-                    "options": self.WELCOME_MESSAGE["options"]
-                }
 
-        # --- ORDER FLOW ---
+        # --- 3. State Machine Logic (For Ongoing Flows) ---
+        
+        # CHECK STATUS
+        if state == "CHECK_STATUS":
+            order_id = message.replace("#", "").strip()
+            status = self.get_order_status(order_id)
+            session["state"] = "IDLE"
+            return status
+
+        # ORDER FLOW (Website/Custom)
         elif state == "ASK_ORDER_CATEGORY":
             if "website" in msg_lower:
                 session["state"] = "WEBSITE_SELECT_PRODUCT"
                 opts = self.get_website_product_options()
                 out_opts = opts[:10]
                 out_opts.append("🔙 Main Menu")
-                return {
-                    "text": "Select a product from our catalog:",
-                    "options": out_opts
-                }
+                return {"text": "Select a product from our catalog:", "options": out_opts}
             elif "custom" in msg_lower:
                 session["state"] = "CUSTOM_UPLOAD_DETAILS"
-                return {
-                    "text": "For custom products, please upload/describe clear photos and details here.",
-                    "options": ["I have uploaded/sent details", "🔙 Main Menu"]
-                }
+                return {"text": "For custom products, please describe/upload details here.", "options": ["I have uploaded details", "🔙 Main Menu"]}
             else:
                  return {"text": "Please choose:", "options": ["Website Product", "Custom Product"]}
 
-        # Website Flow
         elif state == "WEBSITE_SELECT_PRODUCT":
+            # Simple product selection
             if "main menu" in msg_lower:
                 session["state"] = "IDLE"
                 return self.WELCOME_MESSAGE
-
-            product_name = message
-            session["current_item"] = {"type": "Website Product", "product_name": product_name, "size": "NA"}
+            session["current_item"] = {"type": "Website", "product_name": message, "size": "NA"}
             session["state"] = "WEBSITE_ASK_QTY"
-            return {
-                "text": f"Selected '{product_name}'. Quantity?", 
-                "options": ["1", "2", "3", "4", "5"]
-            }
-
+            return {"text": f"Selected '{message}'. Quantity?", "options": ["1", "2", "3"]}
+            
         elif state == "WEBSITE_ASK_QTY":
-            qty = message
-            if "current_item" in session:
-                session["current_item"]["qty"] = qty
-                session["cart"].append(session["current_item"])
-                del session["current_item"]
-            
+            session["current_item"]["qty"] = message
+            session["cart"].append(session["current_item"])
             session["state"] = "ASK_ADD_MORE"
-            return {
-                "text": "Item added to cart 🛒. Add another product?",
-                "options": ["Yes, add more", "No, Checkout"]
-            }
-
-        # Custom Flow
+            return {"text": "Added to cart. Add more?", "options": ["Yes", "No, Checkout"]}
+            
         elif state == "CUSTOM_UPLOAD_DETAILS":
-            if "main menu" in msg_lower:
-                 session["state"] = "IDLE"
-                 return self.WELCOME_MESSAGE
-
             desc = message
-            session["current_item"] = {"type": "Custom Product", "product_name": "Custom Order", "size": "Custom", "details": desc}
-            session["state"] = "CUSTOM_ASK_QTY"
-            return {
-                "text": "Got it. Quantity?",
-                "options": ["1", "2", "3", "5", "10"]
-            }
-        
-        elif state == "CUSTOM_ASK_QTY":
-            qty = message
-            if "current_item" in session:
-                session["current_item"]["qty"] = qty
-                session["cart"].append(session["current_item"])
-                del session["current_item"]
+            if "[image uploaded]" in msg_lower:
+                url = message.split("] ")[1] if "] " in message else message
+                desc = f"Image: {url}"
             
+            session["current_item"] = {"type": "Custom", "product_name": "Custom", "details": desc}
+            session["state"] = "CUSTOM_ASK_QTY"
+            return {"text": "Got it. Quantity?", "options": ["1", "2", "3"]}
+            
+        elif state == "CUSTOM_ASK_QTY":
+            session["current_item"]["qty"] = message
+            session["cart"].append(session["current_item"])
             session["state"] = "ASK_ADD_MORE"
-            return {
-                "text": "Item added to cart 🛒. Add another product?",
-                "options": ["Yes, add more", "No, Checkout"]
-            }
+            return {"text": "Added to cart. Add more?", "options": ["Yes", "No, Checkout"]}
 
-        # Loop or Checkout
         elif state == "ASK_ADD_MORE":
             if "yes" in msg_lower:
                 session["state"] = "ASK_ORDER_CATEGORY"
-                return {
-                    "text": "What kind of product?",
-                    "options": ["Website Product", "Custom Product"]
-                }
+                return {"text": "Category?", "options": ["Website Product", "Custom Product"]}
             else:
                 # Checkout Sequence
-                user_info = session.get("user_info", {})
-                
-                if not user_info.get("name"):
-                    session["state"] = "ASK_NAME"
-                    return {"text": "Please enter your Full Name:", "options": []}
-                
-                if not user_info.get("address"):
-                    session["state"] = "ASK_ADDRESS"
-                    return {"text": "Please enter your Full Address:", "options": []}
-                
-                saved_phone = user_info.get("phone", "")
-                if not saved_phone or len(saved_phone) != 10 or not saved_phone.isdigit():
-                    session["state"] = "ASK_PHONE"
-                    return {"text": "Please enter your 10-digit Mobile Number:", "options": []}
-                
-                return self.finalize_order(user_phone)
+                session["state"] = "ASK_NAME"
+                return {"text": "Please enter your Full Name:", "options": []}
 
         # Info Collection
         elif state == "ASK_NAME":
             session["user_info"]["name"] = message
-            if not session["user_info"].get("address"):
-                session["state"] = "ASK_ADDRESS"
-                return {"text": "Please enter your Full Address:", "options": []}
-            session["state"] = "ASK_PHONE"
-            return {"text": "Please enter your 10-digit Mobile Number:", "options": []}
+            session["state"] = "ASK_ADDRESS"
+            return {"text": "Please enter your Full Address:", "options": []}
 
         elif state == "ASK_ADDRESS":
             session["user_info"]["address"] = message
-            p = session["user_info"].get("phone", "")
-            if p and len(p) == 10 and p.isdigit():
-                 return self.finalize_order(user_phone)
             session["state"] = "ASK_PHONE"
             return {"text": "Please enter your 10-digit Mobile Number:", "options": []}
 
@@ -391,21 +396,25 @@ class IDecorBot:
                 session["user_info"]["phone"] = phone_input
                 return self.finalize_order(user_phone)
             else:
+                return {"text": "⚠️ Invalid number. Please enter exactly 10 digits:", "options": []}
+
+        # --- 4. Fallback Mechanism ---
+        # If we reached here, the input didn't match the current state's expected input 
+        # (For open-ended inputs like Name/Details, we handled them in state blocks. 
+        # But if state was IDLE and no keywords matched, we fall through)
+        
+        if state == "IDLE":
+            session["fallback_count"] += 1
+            if session["fallback_count"] >= 3:
+                session["fallback_count"] = 0
                 return {
-                    "text": "⚠️ Invalid number. Please enter exactly 10 digits:",
-                    "options": []
+                    "text": "I'm having trouble finding that. Would you like to chat with a human expert on WhatsApp?",
+                    "options": ["Chat on WhatsApp", "🔙 Main Menu"]
                 }
-
-        # STATUS CHECK
-        elif state == "CHECK_STATUS":
-            order_id = message.replace("#", "").strip()
-            status = self.get_order_status(order_id)
-            session["state"] = "IDLE"
-            return status
-
+            
         return {
-            "text": "I didn't understand. Type 'hi' to restart.",
-            "options": ["Hi"]
+            "text": "I didn't quite catch that. Could you rephrase? 🤔",
+            "options": self.WELCOME_MESSAGE["options"]
         }
 
     def finalize_order(self, user_key):
@@ -456,6 +465,39 @@ def chat():
     response_data = bot.handle_message(user_id, message)
     return jsonify({"response": response_data})
 
+import os
+import uuid
+
+# ... other imports ...
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file:
+        filename = f"{uuid.uuid4()}_{file.filename}"
+        upload_folder = os.path.join(app.static_folder, 'uploads')
+        os.makedirs(upload_folder, exist_ok=True)
+        file.save(os.path.join(upload_folder, filename))
+        
+        file_url = f"/uploads/{filename}"
+        return jsonify({'url': file_url})
+
 if __name__ == "__main__":
-    print("Starting Flask connection for iDecor Chat...")
-    app.run(port=5000, debug=True)
+    import socket
+    try:
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        print(f"===================================================")
+        print(f"Server Running! 🚀")
+        print(f"Access on this PC:   http://localhost:5000")
+        print(f"Access on Mobile:    http://{local_ip}:5000")
+        print(f"===================================================")
+    except:
+        print("Server Running on http://localhost:5000")
+    
+    app.run(host='0.0.0.0', port=5000, debug=True)
