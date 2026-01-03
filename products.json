@@ -1,0 +1,27 @@
+[
+    {
+        "id": "1",
+        "name": "Minimalist Wall Art",
+        "price": "499"
+    },
+    {
+        "id": "2",
+        "name": "Vintage Movie Poster",
+        "price": "599"
+    },
+    {
+        "id": "3",
+        "name": "Neon City Scape",
+        "price": "699"
+    },
+    {
+        "id": "4",
+        "name": "Custom Star Map",
+        "price": "799"
+    },
+    {
+        "id": "5",
+        "name": "Botanical Prints Set",
+        "price": "999"
+    }
+]
